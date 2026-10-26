@@ -1,0 +1,43 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>camtest</title>
+<style>body{font:14px sans-serif;background:#222;color:#eee} video{width:640px;background:#000}</style>
+</head><body>
+<div id="status">init</div>
+<video id="v" autoplay muted playsinline></video>
+<pre id="info"></pre>
+<script>
+window.camState = {};
+async function run(label) {
+  const st = document.getElementById('status');
+  try {
+    let devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+    if (!devs.some(d => d.label)) {
+      // Labels are hidden until the page has camera permission.
+      try {
+        const probe = await navigator.mediaDevices.getUserMedia({video: true});
+        probe.getTracks().forEach(t => t.stop());
+      } catch (e) { window.camState.probeError = String(e); }
+      devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+    }
+    window.camState.devices = devs.map(d => d.label);
+    const dev = devs.find(d => d.label.includes(label || 'WebcamShare'));
+    if (!dev) { st.textContent = 'device not found'; return; }
+    const s = await navigator.mediaDevices.getUserMedia({video: {deviceId: {exact: dev.deviceId}, width: 1280, height: 720, frameRate: 30}});
+    const v = document.getElementById('v');
+    v.srcObject = s;
+    const track = s.getVideoTracks()[0];
+    let frames = 0, t0 = performance.now();
+    const tick = () => { frames++; v.requestVideoFrameCallback(tick); };
+    v.requestVideoFrameCallback(tick);
+    setInterval(() => {
+      const fps = frames * 1000 / (performance.now() - t0);
+      window.camState.settings = track.getSettings();
+      window.camState.fps = fps.toFixed(1);
+      window.camState.size = v.videoWidth + 'x' + v.videoHeight;
+      document.getElementById('info').textContent = JSON.stringify(window.camState, null, 1);
+      st.textContent = 'streaming ' + dev.label;
+    }, 1000);
+  } catch (e) { st.textContent = 'error: ' + e.name + ' ' + e.message; window.camState.error = String(e); }
+}
+run(new URLSearchParams(location.search).get('label'));
+</script></body></html>

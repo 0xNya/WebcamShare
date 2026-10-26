@@ -1,0 +1,15 @@
+# Build output and packaged binaries (published as release assets, not in git)
+/build/
+/dist/
+
+# Local experiments and tool state
+/third_party/
+/.playwright-mcp/
+/.claude/
+*.bmp
+*.old
+
+# Editors
+.vs/
+.vscode/
+*.user
